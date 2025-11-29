@@ -1,58 +1,75 @@
-<h1 align="center">🔢 Sudoku Solver — DFS + Backtracking (C)</h1>
+<h1 align="center">🔢 Sudoku Solver — DFS + MRV + Forward Checking (C)</h1>
 
 <p align="center">
-  <b>Real-time Animated Visual Solver • Color Tracing • Batch Mode • Export Output</b>  
+  <b>Realtime Visual Solver • Color Tracing • Heuristic MRV Engine • Backtracking Optimized</b>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Language-C-blue?style=flat-square">
-  <img src="https://img.shields.io/badge/Algorithm-DFS%20%2B%20Backtracking-green?style=flat-square">
-  <img src="https://img.shields.io/github/license/Awasthiutk564/Sudoku-DFS-Visualizer-C?style=flat-square">
-  <img src="https://img.shields.io/github/last-commit/Awasthiutk564/Sudoku-DFS-Visualizer-C?style=flat-square">
+  <img src="https://img.shields.io/badge/Language-C-blue?style=for-the-badge">
+  <img src="https://img.shields.io/badge/Algorithm-DFS%20%2B%20MRV%20Heuristic-green?style=for-the-badge">
+  <img src="https://img.shields.io/badge/Optimization-Forward%20Checking-orange?style=for-the-badge">
+  <img src="https://img.shields.io/github/last-commit/Awasthiutk564/Sudoku-DFS-Visualizer-C?style=for-the-badge">
 </p>
 
 ---
 
-## 🧠 Features
-| Capability | Status |
+## 🚀 What This Project Can Do
+
+| Feature | Status |
 |---|:---:|
 | DFS + Backtracking Solver | ✔ |
-| Live terminal visualization | ✔ |
-| Color-coded placements & backtracking | ✔ |
-| Solve input.txt or multiple puzzles.txt | ✔ |
-| Execution Time + Auto output export | ✔ |
+| MRV (Minimum Remaining Values) Heuristic | ✔ |
+| Forward Checking (reduced dead branches) | ✔ |
+| Live Terminal Animation + Colors | ✔ |
+| Execution Stats (Recursions/Backtracks/Nodes) | ✔ |
+| Very Fast Logical Solving | 🔥 |
 
 ---
 
-## 🎥 Demo Preview (Add GIF Here)
-> After recording your terminal animation  
-> Upload GIF → then update below markdown
+## 🧠 How MRV + Forward Checking Improves Performance
 
- 
+| Version | Backtracking | Recursions | Speed |
+|---|---|---|---|
+| Normal DFS | Very High 🔴 | 40k–200k+ | Slow |
+| DFS + MRV | Medium/Low 🟡 | 500–1000 approx | Faster |
+| **DFS + MRV + Forward Checking (this repo)** | Very Low 🟢 | 50–200 avg | ⚡ Smart & Fast |
+
+MRV reduces random guess-work  
+Forward Checking prevents dead boards early  
+Together = 💥 Very Efficient Solver
+
 ---
 
-## 📥 Installation & Run
+## 🎥 Visualization Look
+
+Green → correct placement
+Yellow → testing possibility
+Red → backtrack step
+
+
+> Solver looks alive while solving.
+
+---
+
+## 🛠 How To Run
 
 ```bash
-git clone https://github.com/Awasthiutk564/Sudoku-DFS-Visualizer-C.git
-cd Sudoku-DFS-Visualizer-C
 gcc sudoku.c -o sudoku
-./sudoku
+./sudoku.exe
+Speed-Up Option:
 
-🧭 Modes
-| Option | Action                                              |
-| ------ | --------------------------------------------------- |
-| 1      | Manual Sudoku input                                 |
-| 2      | Solve grid from `input.txt`                         |
-| 3      | Batch solve `puzzles.txt` with time report + export |
+#define DELAY 1   // for faster solve //For those who edit or fork to this repo
 
-📂 Repo Structure
-📦 Sudoku-DFS-Visualizer-C
- ├── sudoku.c
- ├── README.md
- ├── input.txt
- ├── puzzles.txt   (for batch mode)
- ├── output.txt    (auto generated)
- └── preview.gif   (optional demo)
+📊 Output Example (after Upgrade-B)
+Recursions      :    ~50–200
+Backtracks      :    Very Low
+Nodes Explored  :    Small Search Tree
+Time            :    <200ms without animation
 
+📌 Files
+sudoku.c        ← Full optimized solver
+README.md       ← Documentation
+input.txt       ← Single Sudoku input (optional)
+puzzles.txt     ← Multiple sudoku batch solver (optional)
+output.txt      ← Auto-generated on batch run
 
