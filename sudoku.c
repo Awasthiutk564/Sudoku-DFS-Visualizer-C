@@ -4,188 +4,211 @@
 #include <time.h>
 
 #define N 9
-#define DELAY 35   
+#define DELAY 10   // animation speed (ms) - 0 or 1 for very fast
 
-// ============= COLORS ============
+// ---------- Performance Stats ----------
+long long RECURSIONS = 0;
+long long BACKTRACKS = 0;
+long long NODES_EXPLORED = 0;
+
+// ---------- ANSI Colors ----------
 #define GREEN  "\x1b[32m"
 #define RED    "\x1b[31m"
 #define YELLOW "\x1b[33m"
+#define WHITE  "\x1b[37m"
 #define RESET  "\x1b[0m"
 
-// ============= PRINT VISUAL GRID ============
-void printGrid(int grid[N][N], int rH, int cH, int mode) {
+// ---------- GRID DISPLAY WITH ANIMATION ----------
+void printGrid(int grid[N][N], int hr, int hc, int mode) {
     system("cls");
 
-    printf("\n🔵 REAL-TIME DFS SUDOKU SOLVER [Visual + Batch + Export]\n\n");
+    printf("\n🚀 Sudoku Solver — DFS + MRV + Forward Checking + Stats\n\n");
 
-    for(int r=0;r<N;r++){
-        for(int c=0;c<N;c++){
+    for (int r=0; r<N; r++) {
+        for (int c=0; c<N; c++) {
 
-            if(grid[r][c]==0) printf(" . ");
-
-            else if(r==rH && c==cH){
-                if(mode==1) printf(GREEN" %d "RESET);   // placed
-                else if(mode==2) printf(RED" %d "RESET); // backtrack
-                else printf(YELLOW" %d "RESET);          // testing
+            if (grid[r][c] == 0) {
+                printf(" . ");
             }
-            else printf(" %d ",grid[r][c]);
+            else if (r == hr && c == hc) {
+                if (mode == 1)      printf(GREEN  " %d " RESET);   // placed
+                else if (mode == 2) printf(RED    " %d " RESET);   // backtrack
+                else                printf(YELLOW " %d " RESET);   // tested
+            } else {
+                printf(WHITE " %d " RESET);
+            }
         }
         printf("\n");
     }
+
     Sleep(DELAY);
 }
 
-// ============= CHECK SAFE ============
-int isSafe(int grid[N][N],int r,int c,int num){
-    for(int x=0;x<9;x++)
-        if(grid[r][x]==num||grid[x][c]==num) return 0;
+// ---------- SAFETY CHECK ----------
+int isSafe(int grid[N][N], int r, int c, int num) {
 
-    int sr=r-r%3,sc=c-c%3;
-    for(int i=0;i<3;i++)
-        for(int j=0;j<3;j++)
-            if(grid[sr+i][sc+j]==num) return 0;
+    for (int x = 0; x < 9; x++)
+        if (grid[r][x] == num || grid[x][c] == num)
+            return 0;
+
+    int sr = r - r % 3;
+    int sc = c - c % 3;
+
+    for (int i = 0; i < 3; i++)
+        for (int j = 0; j < 3; j++)
+            if (grid[sr + i][sc + j] == num)
+                return 0;
 
     return 1;
 }
 
-// ============= SOLVER + ANIMATION ============
-int solveSudoku(int grid[N][N]){
-    for(int r=0;r<N;r++){
-        for(int c=0;c<N;c++){
-            if(grid[r][c]==0){
-                for(int num=1;num<=9;num++){
-                    if(isSafe(grid,r,c,num)){
-                        grid[r][c]=num; printGrid(grid,r,c,1);
-                        if(solveSudoku(grid)) return 1;
-                        grid[r][c]=0; printGrid(grid,r,c,2);
-                    }
-                    else{
-                        grid[r][c]=num; printGrid(grid,r,c,3);
-                        grid[r][c]=0;
+// ---------- FORWARD CHECKING ----------
+// check that every empty cell still has at least one valid number
+int forwardCheck(int grid[N][N]) {
+    for (int r=0; r<N; r++) {
+        for (int c=0; c<N; c++) {
+
+            if (grid[r][c] == 0) {
+                int hasOption = 0;
+
+                for (int num=1; num<=9; num++) {
+                    if (isSafe(grid,r,c,num)) {
+                        hasOption = 1;
+                        break;
                     }
                 }
-                return 0;
+
+                if (!hasOption) {
+                    return 0;  // dead state → prune early
+                }
             }
         }
     }
     return 1;
 }
 
-// ======================================================
-// SAVE SOLVED BOARD → output.txt
-// ======================================================
-void saveOutput(int grid[N][N], int id, double time){
-    FILE *out=fopen("output.txt","a");
-    fprintf(out,"\n==== SOLVED PUZZLE %d (%.2f ms) ====\n\n",id,time);
-    for(int i=0;i<N;i++){
-        for(int j=0;j<N;j++){
-            fprintf(out,"%d ",grid[i][j]);
+// ---------- MRV: CELL WITH MINIMUM OPTIONS ----------
+int findBestCell(int grid[N][N], int *br, int *bc) {
+    int minOptions = 10;
+    int found = 0;
+
+    for (int r=0; r<N; r++) {
+        for (int c=0; c<N; c++) {
+
+            if (grid[r][c] == 0) {
+                int cnt = 0;
+
+                for (int num=1; num<=9; num++)
+                    if (isSafe(grid,r,c,num))
+                        cnt++;
+
+                if (cnt < minOptions) {
+                    minOptions = cnt;
+                    *br = r;
+                    *bc = c;
+                    found = 1;
+
+                    if (cnt == 1)
+                        return 1;  // best possible MRV
+                }
+            }
         }
-        fprintf(out,"\n");
     }
-    fclose(out);
+    return found;
 }
 
+// ---------- DFS + MRV + FORWARD CHECKING ----------
+int solveSudokuHeuristic(int grid[N][N]) {
+    RECURSIONS++;
 
-// ======================================================
-// LOAD ONE PUZZLE FROM FILE
-// ======================================================
-int loadPuzzle(FILE *fp,int grid[N][N]){
-    for(int i=0;i<9;i++)
-        for(int j=0;j<9;j++)
-            if(fscanf(fp,"%d",&grid[i][j])!=1) return 0; 
-    return 1;
+    int r, c;
+
+    // 1) pick best cell by MRV
+    if (!findBestCell(grid, &r, &c)) {
+        // no empty cells -> solved
+        return 1;
+    }
+
+    // 2) try all numbers in that cell
+    for (int num=1; num<=9; num++) {
+
+        NODES_EXPLORED++;
+
+        if (isSafe(grid,r,c,num)) {
+
+            grid[r][c] = num;
+            printGrid(grid,r,c,1);  // green: placed
+
+            // 3) forward check: ensure no future dead cell
+            if (!forwardCheck(grid)) {
+                // this assignment will lead to dead-end → backtrack early
+                grid[r][c] = 0;
+                BACKTRACKS++;
+                printGrid(grid,r,c,2); // red backtrack
+                continue;
+            }
+
+            // 4) continue recursion
+            if (solveSudokuHeuristic(grid))
+                return 1;
+
+            // 5) normal backtrack
+            grid[r][c] = 0;
+            BACKTRACKS++;
+            printGrid(grid,r,c,2); // red backtrack
+        }
+        else {
+            // optional visualization of failed attempt
+            grid[r][c] = num;
+            printGrid(grid,r,c,3);  // yellow try
+            grid[r][c] = 0;
+        }
+    }
+
+    return 0;
 }
 
+// ================= MAIN =================
+int main() {
 
-// ======================================================
-// MAIN MENU + MODES
-// ======================================================
-int main(){
+    int grid[N][N] = {
+        {5,3,0,0,7,0,0,0,0},
+        {6,0,0,1,9,5,0,0,0},
+        {0,9,8,0,0,0,0,6,0},
+        {8,0,0,0,6,0,0,0,3},
+        {4,0,0,8,0,3,0,0,1},
+        {7,0,0,0,2,0,0,0,6},
+        {0,6,0,0,0,0,2,8,0},
+        {0,0,0,4,1,9,0,0,5},
+        {0,0,0,0,8,0,0,7,9}
+    };
 
-    int choice;
-    
-    printf("\n==================== MENU ====================\n");
-    printf("1. Solve a Sudoku manually (keyboard input)\n");
-    printf("2. Solve single Sudoku from input.txt\n");
-    printf("3. Batch solve multiple Sudoku from puzzles.txt\n");
-    printf("===============================================\n");
-    printf("Choose option: ");
-    scanf("%d",&choice);
+    printGrid(grid,-1,-1,0);
+
+    clock_t start = clock();
+    int ok = solveSudokuHeuristic(grid);
+    double time_ms = (double)(clock() - start) / CLOCKS_PER_SEC * 1000;
 
     system("cls");
 
-    if(choice==1){
-        int grid[N][N];
-        printf("Enter 9x9 Sudoku (0 for blank):\n");
-        for(int r=0;r<9;r++)
-            for(int c=0;c<9;c++)
-                scanf("%d",&grid[r][c]);
-
-        printGrid(grid,-1,-1,0);
-        clock_t s=clock();
-
-        if(solveSudoku(grid)){
-            double time=(clock()-s)/(double)CLOCKS_PER_SEC*1000;
-            printf("\n✔ Solved Successfully in %.2f ms\n",time);
-            printGrid(grid,-1,-1,1);
-            saveOutput(grid,1,time);
-            printf("\nSolution saved → output.txt\n");
-        }else printf("❌ No solution!");
-    }
-
-
-    else if(choice==2){
-        FILE *fp=fopen("input.txt","r");
-        if(!fp){ printf("❌ input.txt missing!"); return 0; }
-
-        int grid[N][N];
-        loadPuzzle(fp,grid);
-
-        printGrid(grid,-1,-1,0);
-        clock_t s=clock();
-        solveSudoku(grid);
-        double time=(clock()-s)/(double)CLOCKS_PER_SEC*1000;
-
-        printf("\n✔ Solved in %.2f ms\n",time);
-        printGrid(grid,-1,-1,1);
-        saveOutput(grid,1,time);
-        printf("\nSaved → output.txt\n");
-    }
-
-
-    else if(choice==3){
-        FILE *fp=fopen("puzzles.txt","r");
-        if(!fp){ printf("❌ puzzles.txt missing!"); return 0; }
-
-        int grid[N][N],id=0,solved=0,total=0;
-
-        while(loadPuzzle(fp,grid)){
-            total++; id++;
-            printf("\n🧩 Solving Puzzle %d ...\n",id);
-
-            printGrid(grid,-1,-1,0);
-            clock_t s=clock();
-            int ok=solveSudoku(grid);
-            double time=(clock()-s)/(double)CLOCKS_PER_SEC*1000;
-
-            if(ok){
-                solved++;
-                printf("\n✔ Puzzle-%d Solved in %.2f ms\n",id,time);
-                printGrid(grid,-1,-1,1);
-                saveOutput(grid,id,time);
-            }else{
-                printf("\n❌ Puzzle-%d UNSOLVABLE\n",id);
-            }
-            getchar(); getchar(); 
+    if (ok) {
+        printf("\n🎉 FINAL SOLVED GRID (Clean Output):\n\n");
+        for (int r=0; r<N; r++) {
+            for (int c=0; c<N; c++)
+                printf(" %d ", grid[r][c]);
+            printf("\n");
         }
-
-        printf("\n====== SUMMARY ======\n");
-        printf("Total: %d\n",total);
-        printf("Solved: %d\n",solved);
-        printf("Failed: %d\n",total-solved);
-        printf("Solutions exported → output.txt\n\n");
+    } else {
+        printf("\n❌ No solution found.\n");
     }
+
+    printf("\n📊 PERFORMANCE REPORT\n");
+    printf("-----------------------------\n");
+    printf("Recursions      : %lld\n", RECURSIONS);
+    printf("Backtracks      : %lld\n", BACKTRACKS);
+    printf("Nodes Explored  : %lld\n", NODES_EXPLORED);
+    printf("Execution Time  : %.2f ms\n", time_ms);
+    printf("-----------------------------\n");
 
     return 0;
 }
