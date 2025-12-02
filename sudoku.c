@@ -2,14 +2,15 @@
 #include <stdlib.h>
 #include <windows.h>
 #include <time.h>
+#include <string.h>
 
 #define N 9
 #define DELAY 10
 
-// ---------- Stats ----------
+// ---------- STATS ----------
 long long RECURSIONS = 0, BACKTRACKS = 0, NODES_EXPLORED = 0;
 
-// ---------- Colors ----------
+// ---------- COLORS ----------
 #define GREEN  "\x1b[32m"
 #define RED    "\x1b[31m"
 #define YELLOW "\x1b[33m"
@@ -23,27 +24,28 @@ void resetStats() {
     NODES_EXPLORED = 0;
 }
 
-// ---------- GRID DISPLAY ----------
-void printGrid(int grid[N][N], int hr, int hc, int mode) {
+// ---------- PRINT GRID ----------
+void printGrid(int g[N][N], int hr,int hc,int mode){
     system("cls");
-    printf("\n🔥 Sudoku Multi-Mode Solver (DFS / MRV / MRV+FC)\n\n");
+    printf("\n🔥 Sudoku Solver — Multi Mode (DFS / MRV / MRV+FC)\n\n");
 
-    for (int r=0;r<N;r++) {
-        for (int c=0;c<N;c++) {
-            if (grid[r][c] == 0) printf(" . ");
-            else if (r==hr && c==hc) {
-                if(mode==1)      printf(GREEN" %d "RESET);
+    for(int r=0;r<9;r++){
+        for(int c=0;c<9;c++){
+            if(g[r][c]==0) printf(" . ");
+            else if(r==hr && c==hc){
+                if(mode==1) printf(GREEN" %d "RESET);
                 else if(mode==2) printf(RED" %d "RESET);
-                else             printf(YELLOW" %d "RESET);
-            } else printf(WHITE" %d "RESET);
+                else printf(YELLOW" %d "RESET);
+            }
+            else printf(WHITE" %d "RESET);
         }
         printf("\n");
     }
     Sleep(DELAY);
 }
 
-// ---------- SAFETY CHECK ----------
-int isSafe(int g[N][N], int r, int c, int num) {
+// ---------- isSafe ----------
+int isSafe(int g[N][N],int r,int c,int num){
     for(int x=0;x<9;x++)
         if(g[r][x]==num || g[x][c]==num) return 0;
 
@@ -55,18 +57,17 @@ int isSafe(int g[N][N], int r, int c, int num) {
     return 1;
 }
 
-//
-// ---------------- NORMAL DFS SOLVER ----------------
-//
-int solveDFS(int g[N][N]) {
+// ---------- DFS ----------
+int solveDFS(int g[N][N]){
     RECURSIONS++;
+
     for(int r=0;r<9;r++){
         for(int c=0;c<9;c++){
             if(g[r][c]==0){
-                for(int num=1;num<=9;num++){
+                for(int n=1;n<=9;n++){
                     NODES_EXPLORED++;
-                    if(isSafe(g,r,c,num)){
-                        g[r][c]=num;
+                    if(isSafe(g,r,c,n)){
+                        g[r][c]=n;
                         printGrid(g,r,c,1);
                         if(solveDFS(g)) return 1;
                         g[r][c]=0;
@@ -81,10 +82,8 @@ int solveDFS(int g[N][N]) {
     return 1;
 }
 
-//
-// ---------------- MRV FUNCTION ----------------
-//
-int findMRV(int g[N][N], int *br, int *bc) {
+// ---------- MRV ----------
+int findMRV(int g[N][N],int *br,int *bc){
     int best=10, found=0;
 
     for(int r=0;r<9;r++){
@@ -106,10 +105,8 @@ int findMRV(int g[N][N], int *br, int *bc) {
     return found;
 }
 
-//
-// ---------------- DFS + MRV ----------------
-//
-int solveMRV(int g[N][N]) {
+// ---------- MRV Solver ----------
+int solveMRV(int g[N][N]){
     RECURSIONS++;
 
     int r,c;
@@ -129,16 +126,14 @@ int solveMRV(int g[N][N]) {
     return 0;
 }
 
-//
-// ---------------- FORWARD CHECKING ----------------
-//
+// ---------- Forward Checking ----------
 int forwardCheck(int g[N][N]){
     for(int r=0;r<9;r++){
         for(int c=0;c<9;c++){
             if(g[r][c]==0){
                 int ok=0;
-                for(int num=1;num<=9;num++)
-                    if(isSafe(g,r,c,num)) ok=1;
+                for(int n=1;n<=9;n++)
+                    if(isSafe(g,r,c,n)) ok=1;
                 if(!ok) return 0;
             }
         }
@@ -146,10 +141,8 @@ int forwardCheck(int g[N][N]){
     return 1;
 }
 
-//
-// -------- DFS + MRV + FORWARD CHECKING --------
-//
-int solveMRV_FC(int g[N][N]) {
+// ---------- MRV + Forward Checking ----------
+int solveMRV_FC(int g[N][N]){
     RECURSIONS++;
 
     int r,c;
@@ -179,9 +172,7 @@ int solveMRV_FC(int g[N][N]) {
     return 0;
 }
 
-//
-// ---------------- MAIN ----------------
-//
+// ---------- MAIN ----------
 int main(){
 
     int original[N][N] = {
@@ -197,13 +188,18 @@ int main(){
     };
 
     int choice;
-    printf("\n========== SELECT SOLVER MODE ==========\n");
+
+    printf("\n========= SELECT SOLVER MODE =========\n");
     printf("1. Normal DFS\n");
-    printf("2. DFS + MRV Heuristic\n");
-    printf("3. DFS + MRV + Forward Checking (FAST)\n");
-    printf("========================================\n");
-    printf("Enter choice: ");
+    printf("2. DFS + MRV\n");
+    printf("3. DFS + MRV + Forward Checking\n");
+    printf("======================================\n");
+    printf("Enter your choice (1-3): ");
+
     scanf("%d",&choice);
+
+    printf("\nDEBUG: Choice detected = %d\n", choice);
+    Sleep(1000);
 
     int grid[N][N];
     memcpy(grid, original, sizeof(original));
@@ -211,19 +207,22 @@ int main(){
     printGrid(grid,-1,-1,0);
     resetStats();
 
-    clock_t start = clock();
-
+    clock_t start=clock();
     int solved = 0;
 
     if(choice==1) solved = solveDFS(grid);
     else if(choice==2) solved = solveMRV(grid);
     else if(choice==3) solved = solveMRV_FC(grid);
+    else {
+        printf("Invalid choice.\n");
+        return 0;
+    }
 
-    double t = (double)(clock()-start)/CLOCKS_PER_SEC*1000;
+    double t=(double)(clock()-start)/CLOCKS_PER_SEC*1000;
 
     system("cls");
-
     printf("\n🎉 FINAL SOLVED GRID:\n\n");
+
     for(int r=0;r<9;r++){
         for(int c=0;c<9;c++)
             printf(" %d ",grid[r][c]);
@@ -232,10 +231,10 @@ int main(){
 
     printf("\n📊 PERFORMANCE REPORT\n");
     printf("-----------------------------\n");
-    printf("Recursions      : %lld\n", RECURSIONS);
-    printf("Backtracks      : %lld\n", BACKTRACKS);
-    printf("Nodes Explored  : %lld\n", NODES_EXPLORED);
-    printf("Execution Time  : %.2f ms\n", t);
+    printf("Recursions      : %lld\n",RECURSIONS);
+    printf("Backtracks      : %lld\n",BACKTRACKS);
+    printf("Nodes Explored  : %lld\n",NODES_EXPLORED);
+    printf("Execution Time  : %.2f ms\n",t);
     printf("-----------------------------\n");
 
     return 0;
