@@ -4,112 +4,101 @@
 #include <time.h>
 
 #define N 9
-#define DELAY 10   // animation speed (ms) - 0 or 1 for very fast
+#define DELAY 10
 
-// ---------- Performance Stats ----------
-long long RECURSIONS = 0;
-long long BACKTRACKS = 0;
-long long NODES_EXPLORED = 0;
+// ---------- Stats ----------
+long long RECURSIONS = 0, BACKTRACKS = 0, NODES_EXPLORED = 0;
 
-// ---------- ANSI Colors ----------
+// ---------- Colors ----------
 #define GREEN  "\x1b[32m"
 #define RED    "\x1b[31m"
 #define YELLOW "\x1b[33m"
 #define WHITE  "\x1b[37m"
 #define RESET  "\x1b[0m"
 
-// ---------- GRID DISPLAY WITH ANIMATION ----------
+// ---------- RESET STATS ----------
+void resetStats() {
+    RECURSIONS = 0;
+    BACKTRACKS = 0;
+    NODES_EXPLORED = 0;
+}
+
+// ---------- GRID DISPLAY ----------
 void printGrid(int grid[N][N], int hr, int hc, int mode) {
     system("cls");
+    printf("\n🔥 Sudoku Multi-Mode Solver (DFS / MRV / MRV+FC)\n\n");
 
-    printf("\n🚀 Sudoku Solver — DFS + MRV + Forward Checking + Stats\n\n");
-
-    for (int r=0; r<N; r++) {
-        for (int c=0; c<N; c++) {
-
-            if (grid[r][c] == 0) {
-                printf(" . ");
-            }
-            else if (r == hr && c == hc) {
-                if (mode == 1)      printf(GREEN  " %d " RESET);   // placed
-                else if (mode == 2) printf(RED    " %d " RESET);   // backtrack
-                else                printf(YELLOW " %d " RESET);   // tested
-            } else {
-                printf(WHITE " %d " RESET);
-            }
+    for (int r=0;r<N;r++) {
+        for (int c=0;c<N;c++) {
+            if (grid[r][c] == 0) printf(" . ");
+            else if (r==hr && c==hc) {
+                if(mode==1)      printf(GREEN" %d "RESET);
+                else if(mode==2) printf(RED" %d "RESET);
+                else             printf(YELLOW" %d "RESET);
+            } else printf(WHITE" %d "RESET);
         }
         printf("\n");
     }
-
     Sleep(DELAY);
 }
 
 // ---------- SAFETY CHECK ----------
-int isSafe(int grid[N][N], int r, int c, int num) {
+int isSafe(int g[N][N], int r, int c, int num) {
+    for(int x=0;x<9;x++)
+        if(g[r][x]==num || g[x][c]==num) return 0;
 
-    for (int x = 0; x < 9; x++)
-        if (grid[r][x] == num || grid[x][c] == num)
-            return 0;
-
-    int sr = r - r % 3;
-    int sc = c - c % 3;
-
-    for (int i = 0; i < 3; i++)
-        for (int j = 0; j < 3; j++)
-            if (grid[sr + i][sc + j] == num)
-                return 0;
+    int sr=r-r%3, sc=c-c%3;
+    for(int i=0;i<3;i++)
+        for(int j=0;j<3;j++)
+            if(g[sr+i][sc+j]==num) return 0;
 
     return 1;
 }
 
-// ---------- FORWARD CHECKING ----------
-// check that every empty cell still has at least one valid number
-int forwardCheck(int grid[N][N]) {
-    for (int r=0; r<N; r++) {
-        for (int c=0; c<N; c++) {
-
-            if (grid[r][c] == 0) {
-                int hasOption = 0;
-
-                for (int num=1; num<=9; num++) {
-                    if (isSafe(grid,r,c,num)) {
-                        hasOption = 1;
-                        break;
+//
+// ---------------- NORMAL DFS SOLVER ----------------
+//
+int solveDFS(int g[N][N]) {
+    RECURSIONS++;
+    for(int r=0;r<9;r++){
+        for(int c=0;c<9;c++){
+            if(g[r][c]==0){
+                for(int num=1;num<=9;num++){
+                    NODES_EXPLORED++;
+                    if(isSafe(g,r,c,num)){
+                        g[r][c]=num;
+                        printGrid(g,r,c,1);
+                        if(solveDFS(g)) return 1;
+                        g[r][c]=0;
+                        BACKTRACKS++;
+                        printGrid(g,r,c,2);
                     }
                 }
-
-                if (!hasOption) {
-                    return 0;  // dead state → prune early
-                }
+                return 0;
             }
         }
     }
     return 1;
 }
 
-// ---------- MRV: CELL WITH MINIMUM OPTIONS ----------
-int findBestCell(int grid[N][N], int *br, int *bc) {
-    int minOptions = 10;
-    int found = 0;
+//
+// ---------------- MRV FUNCTION ----------------
+//
+int findMRV(int g[N][N], int *br, int *bc) {
+    int best=10, found=0;
 
-    for (int r=0; r<N; r++) {
-        for (int c=0; c<N; c++) {
+    for(int r=0;r<9;r++){
+        for(int c=0;c<9;c++){
+            if(g[r][c]==0){
+                int cnt=0;
+                for(int n=1;n<=9;n++)
+                    if(isSafe(g,r,c,n)) cnt++;
 
-            if (grid[r][c] == 0) {
-                int cnt = 0;
-
-                for (int num=1; num<=9; num++)
-                    if (isSafe(grid,r,c,num))
-                        cnt++;
-
-                if (cnt < minOptions) {
-                    minOptions = cnt;
+                if(cnt < best){
+                    best = cnt;
                     *br = r;
                     *bc = c;
                     found = 1;
-
-                    if (cnt == 1)
-                        return 1;  // best possible MRV
                 }
             }
         }
@@ -117,61 +106,85 @@ int findBestCell(int grid[N][N], int *br, int *bc) {
     return found;
 }
 
-// ---------- DFS + MRV + FORWARD CHECKING ----------
-int solveSudokuHeuristic(int grid[N][N]) {
+//
+// ---------------- DFS + MRV ----------------
+//
+int solveMRV(int g[N][N]) {
     RECURSIONS++;
 
-    int r, c;
+    int r,c;
+    if(!findMRV(g,&r,&c)) return 1;
 
-    // 1) pick best cell by MRV
-    if (!findBestCell(grid, &r, &c)) {
-        // no empty cells -> solved
-        return 1;
-    }
-
-    // 2) try all numbers in that cell
-    for (int num=1; num<=9; num++) {
-
+    for(int num=1;num<=9;num++){
         NODES_EXPLORED++;
-
-        if (isSafe(grid,r,c,num)) {
-
-            grid[r][c] = num;
-            printGrid(grid,r,c,1);  // green: placed
-
-            // 3) forward check: ensure no future dead cell
-            if (!forwardCheck(grid)) {
-                // this assignment will lead to dead-end → backtrack early
-                grid[r][c] = 0;
-                BACKTRACKS++;
-                printGrid(grid,r,c,2); // red backtrack
-                continue;
-            }
-
-            // 4) continue recursion
-            if (solveSudokuHeuristic(grid))
-                return 1;
-
-            // 5) normal backtrack
-            grid[r][c] = 0;
+        if(isSafe(g,r,c,num)){
+            g[r][c]=num;
+            printGrid(g,r,c,1);
+            if(solveMRV(g)) return 1;
+            g[r][c]=0;
             BACKTRACKS++;
-            printGrid(grid,r,c,2); // red backtrack
-        }
-        else {
-            // optional visualization of failed attempt
-            grid[r][c] = num;
-            printGrid(grid,r,c,3);  // yellow try
-            grid[r][c] = 0;
+            printGrid(g,r,c,2);
         }
     }
-
     return 0;
 }
 
-// ================= MAIN =================
-int main() {
+//
+// ---------------- FORWARD CHECKING ----------------
+//
+int forwardCheck(int g[N][N]){
+    for(int r=0;r<9;r++){
+        for(int c=0;c<9;c++){
+            if(g[r][c]==0){
+                int ok=0;
+                for(int num=1;num<=9;num++)
+                    if(isSafe(g,r,c,num)) ok=1;
+                if(!ok) return 0;
+            }
+        }
+    }
+    return 1;
+}
 
-    int grid[N][N] = {
+//
+// -------- DFS + MRV + FORWARD CHECKING --------
+//
+int solveMRV_FC(int g[N][N]) {
+    RECURSIONS++;
+
+    int r,c;
+    if(!findMRV(g,&r,&c)) return 1;
+
+    for(int num=1;num<=9;num++){
+        NODES_EXPLORED++;
+
+        if(isSafe(g,r,c,num)){
+            g[r][c]=num;
+            printGrid(g,r,c,1);
+
+            if(!forwardCheck(g)){
+                g[r][c]=0;
+                BACKTRACKS++;
+                printGrid(g,r,c,2);
+                continue;
+            }
+
+            if(solveMRV_FC(g)) return 1;
+
+            g[r][c]=0;
+            BACKTRACKS++;
+            printGrid(g,r,c,2);
+        }
+    }
+    return 0;
+}
+
+//
+// ---------------- MAIN ----------------
+//
+int main(){
+
+    int original[N][N] = {
         {5,3,0,0,7,0,0,0,0},
         {6,0,0,1,9,5,0,0,0},
         {0,9,8,0,0,0,0,6,0},
@@ -183,23 +196,38 @@ int main() {
         {0,0,0,0,8,0,0,7,9}
     };
 
+    int choice;
+    printf("\n========== SELECT SOLVER MODE ==========\n");
+    printf("1. Normal DFS\n");
+    printf("2. DFS + MRV Heuristic\n");
+    printf("3. DFS + MRV + Forward Checking (FAST)\n");
+    printf("========================================\n");
+    printf("Enter choice: ");
+    scanf("%d",&choice);
+
+    int grid[N][N];
+    memcpy(grid, original, sizeof(original));
+
     printGrid(grid,-1,-1,0);
+    resetStats();
 
     clock_t start = clock();
-    int ok = solveSudokuHeuristic(grid);
-    double time_ms = (double)(clock() - start) / CLOCKS_PER_SEC * 1000;
+
+    int solved = 0;
+
+    if(choice==1) solved = solveDFS(grid);
+    else if(choice==2) solved = solveMRV(grid);
+    else if(choice==3) solved = solveMRV_FC(grid);
+
+    double t = (double)(clock()-start)/CLOCKS_PER_SEC*1000;
 
     system("cls");
 
-    if (ok) {
-        printf("\n🎉 FINAL SOLVED GRID (Clean Output):\n\n");
-        for (int r=0; r<N; r++) {
-            for (int c=0; c<N; c++)
-                printf(" %d ", grid[r][c]);
-            printf("\n");
-        }
-    } else {
-        printf("\n❌ No solution found.\n");
+    printf("\n🎉 FINAL SOLVED GRID:\n\n");
+    for(int r=0;r<9;r++){
+        for(int c=0;c<9;c++)
+            printf(" %d ",grid[r][c]);
+        printf("\n");
     }
 
     printf("\n📊 PERFORMANCE REPORT\n");
@@ -207,7 +235,7 @@ int main() {
     printf("Recursions      : %lld\n", RECURSIONS);
     printf("Backtracks      : %lld\n", BACKTRACKS);
     printf("Nodes Explored  : %lld\n", NODES_EXPLORED);
-    printf("Execution Time  : %.2f ms\n", time_ms);
+    printf("Execution Time  : %.2f ms\n", t);
     printf("-----------------------------\n");
 
     return 0;
